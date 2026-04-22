@@ -454,7 +454,7 @@ def display_filtered_builds(builds, last_builds=None, watch_mode=False):
                 print(f"  Duration: {build['duration'] / 1000:.2f}s" if build['duration'] else "  Duration: N/A")
 
 
-def save_to_json(builds, filename="jenkins_builds_install_cluster.json", debug=False):
+def save_to_json(builds, filename="jenkins_builds_status.json", debug=False):
     """Save the filtered builds to a JSON file"""
     try:
         with open(filename, 'w') as f:
@@ -469,7 +469,7 @@ def save_to_json(builds, filename="jenkins_builds_install_cluster.json", debug=F
             traceback.print_exc()
 
 
-def save_to_csv(builds, filename="jenkins_builds_install_cluster.csv", debug=False):
+def save_to_csv(builds, filename="jenkins_builds_status.csv", debug=False):
     """Save the filtered builds to a CSV file"""
     try:
         with open(filename, 'w', newline='') as f:
@@ -571,9 +571,9 @@ def show_iteration_header(iteration, refresh_status):
               help='Disable SSL certificate verification')
 @click.option('--save/--no-save', default=True,
               help='Save results to JSON/CSV files (one-time mode only)')
-@click.option('--json-file', default='jenkins_builds_install_cluster.json',
+@click.option('--json-file', default='jenkins_builds_status.json',
               help='JSON output filename')
-@click.option('--csv-file', default='jenkins_builds_install_cluster.csv',
+@click.option('--csv-file', default='jenkins_builds_status.csv',
               help='CSV output filename')
 @click.option('--debug', '-d', is_flag=True,
               help='Enable debug mode with verbose output (one-time mode only)')
