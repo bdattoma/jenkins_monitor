@@ -84,6 +84,9 @@ python jenkins_monitor.py --json-file my_report.json --csv-file my_report.csv
 
 # Don't save files
 python jenkins_monitor.py --no-save
+
+# Enable debug mode for troubleshooting
+python jenkins_monitor.py --debug
 ```
 
 ### Watch Mode
@@ -122,6 +125,7 @@ Options:
   --save/--no-save     Save results to JSON/CSV (one-time mode) [default: save]
   --json-file TEXT     JSON output filename [default: jenkins_builds_install_cluster.json]
   --csv-file TEXT      CSV output filename [default: jenkins_builds_install_cluster.csv]
+  -d, --debug          Enable debug mode with verbose output (one-time mode)
   --help               Show this message and exit
 ```
 
@@ -278,14 +282,14 @@ Refresh interval: 30 seconds
 Press Ctrl+C to exit
 
 Last updated: 2026-04-22 14:30:45 | Iteration: 5
-================================================================================================
+====================================================================================================================================================================================
 
-NEW  #        Status       Test Env             Cluster Type         Failed Stage                   Started              Duration    
-NEW  12141    RUNNING      AWS                  selfmanaged          -                              2026-04-22 15:30:33  N/A         
-     12140    SUCCESS      Cloud-A              selfmanaged          -                              2026-04-22 15:29:58  2145.32s     
-     12138    FAILURE      AWS                  selfmanaged          Provisioning, Setup...         2026-04-22 15:02:09  399.86s     
+NEW  #        Status       Test Env             Cluster Type         Failed Stage                   Started              Duration     URL
+NEW  12141    RUNNING      AWS                  selfmanaged          -                              2026-04-22 15:30:33  N/A          https://jenkins.example.com/job/team/job/my-test-job/12141/
+     12140    SUCCESS      Cloud-A              selfmanaged          -                              2026-04-22 15:29:58  2145.32s     https://jenkins.example.com/job/team/job/my-test-job/12140/
+     12138    FAILURE      AWS                  selfmanaged          Provisioning, Setup...         2026-04-22 15:02:09  399.86s      https://jenkins.example.com/job/team/job/my-test-job/12138/
 
-================================================================================================
+====================================================================================================================================================================================
 Summary: FAILURE: 1 | RUNNING: 1 | SUCCESS: 8 | Total: 10
 New builds since last check: 1
 
@@ -322,12 +326,13 @@ Includes columns: number, status, building, timestamp, started_datetime, duratio
 - **First run**: Use one-time mode without filters to see all builds
 - **Active monitoring**: Use watch mode during deployments to see builds complete in real-time
 - **Running builds**: Builds show as `RUNNING` (blue) until they complete
-- **Filter strategically**: Use `-f` to focus on specific builds (e.g., only cluster installations)
+- **Filter strategically**: Use `-f` to focus on specific builds (e.g., only infrastructure provisioning)
 - **Multiple filters**: Combine filters for precise queries (filters use AND logic)
 - **Long history**: Increase `--limit` to see more builds
 - **Fast refresh**: Set `--interval 10` for rapid updates during active development
 - **All builds**: Use `--limit 0` (may be slow for large job histories)
 - **Multiple jobs**: Run multiple instances in different terminals
+- **Debug mode**: Use `--debug` to see detailed diagnostic output including build parameters, API responses, and error traces
 - **More examples**: See **[USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)** for practical scenarios
 
 ## Troubleshooting

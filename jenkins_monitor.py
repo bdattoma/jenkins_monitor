@@ -196,29 +196,34 @@ def matches_filter(parameters, filters):
     return True
 
 
-def get_builds(server, job_name, limit=None, filter_params=None, quiet=False):
-    """Get builds, optionally filtered by parameters"""
+def get_builds(server, job_name, limit=None, filter_params=None, debug=False, quiet_mode=False):
+    """Get builds, optionally filtered by parameters
+
+    Args:
+        quiet_mode: If True, suppress normal output (used in watch mode to avoid repeated headers)
+        debug: If True, show extra debug information
+    """
     try:
         job_info = server.get_job_info(job_name, depth=1)
 
-        if not quiet:
+        if not quiet_mode:
             print(f"Job Name: {job_info['name']}")
             print(f"Job URL: {job_info['url']}")
             print(f"Total Builds Available: {len(job_info['builds'])}")
 
         if limit is not None and limit > 0:
             builds_to_check = job_info['builds'][:limit]
-            if not quiet:
+            if not quiet_mode:
                 print(f"Build Limit: {limit} (only checking the last {limit} builds)")
         else:
             builds_to_check = job_info['builds']
-            if not quiet:
+            if not quiet_mode:
                 print(f"Build Limit: None (checking ALL builds)")
 
         # Parse filter parameters
         filters = parse_filter_params(filter_params)
 
-        if not quiet:
+        if not quiet_mode:
             if filters:
                 filter_strs = [f"{k}={v}" for k, v in filters.items()]
                 print(f"Filters: {', '.join(filter_strs)}")
@@ -228,7 +233,7 @@ def get_builds(server, job_name, limit=None, filter_params=None, quiet=False):
 
         filtered_builds = []
 
-        if not quiet:
+        if not quiet_mode:
             if filters:
                 print(f"\nFetching build details and filtering by {', '.join([f'{k}={v}' for k, v in filters.items()])}...")
             else:
@@ -238,12 +243,15 @@ def get_builds(server, job_name, limit=None, filter_params=None, quiet=False):
         for idx, build in enumerate(builds_to_check, 1):
             build_num = build['number']
 
-            if not quiet and idx % 10 == 0:
+            if not quiet_mode and idx % 10 == 0:
                 print(f"Processed {idx}/{len(builds_to_check)} builds...")
 
             try:
                 build_info = server.get_build_info(job_name, build_num)
                 parameters = get_build_parameters(build_info)
+
+                if debug:
+                    print(f"  Build #{build_num}: status={build_info['result']}, params={list(parameters.keys())}")
 
                 # Check if build matches filters
                 if matches_filter(parameters, filters):
@@ -251,10 +259,7 @@ def get_builds(server, job_name, limit=None, filter_params=None, quiet=False):
                     status = build_info['result'] or 'RUNNING'
 
                     if status == 'FAILURE':
-                        if not quiet:
-                            failed_stages = get_failed_stages(server, job_name, build_num, debug=True)
-                        else:
-                            failed_stages = get_failed_stages(server, job_name, build_num, debug=False)
+                        failed_stages = get_failed_stages(server, job_name, build_num, debug=debug)
 
                     filtered_builds.append({
                         'number': build_num,
@@ -268,11 +273,14 @@ def get_builds(server, job_name, limit=None, filter_params=None, quiet=False):
                     })
 
             except Exception as e:
-                if not quiet:
+                if not quiet_mode:
                     print(f"Error fetching build #{build_num}: {e}")
+                if debug:
+                    import traceback
+                    traceback.print_exc()
                 continue
 
-        if not quiet:
+        if not quiet_mode:
             if filters:
                 filter_desc = ', '.join([f'{k}={v}' for k, v in filters.items()])
                 print(f"\nCompleted! Found {len(filtered_builds)} builds matching filters: {filter_desc}")
@@ -328,8 +336,8 @@ def display_filtered_builds(builds, last_builds=None, watch_mode=False):
 
     # Header
     if watch_mode:
-        header = f"\n{'NEW':<4} {'#':<8} {'Status':<12} {'Test Env':<20} {'Cluster Type':<20} {'Failed Stage':<30} {'Started':<20} {'Duration':<12}"
-        separator = "-" * 160
+        header = f"\n{'NEW':<4} {'#':<8} {'Status':<12} {'Test Env':<20} {'Cluster Type':<20} {'Failed Stage':<30} {'Started':<20} {'Duration':<12} {'URL'}"
+        separator = "-" * 180
     else:
         header = f"\n{'#':<8} {'Status':<12} {'Test Env':<20} {'Cluster Type':<20} {'Failed Stage':<30} {'Started':<20} {'Duration':<12} {'URL'}"
         separator = "-" * 180
@@ -363,7 +371,7 @@ def display_filtered_builds(builds, last_builds=None, watch_mode=False):
         # Format the line
         if watch_mode:
             new_indicator = f"{Colors.CYAN}NEW{Colors.RESET}" if build_num in new_build_numbers else "   "
-            line = f"{new_indicator:<4} {build_num:<8} {status:<12} {test_env:<20} {cluster_type:<20} {failed_stage_str:<30} {started:<20} {duration:<12}"
+            line = f"{new_indicator:<4} {build_num:<8} {status:<12} {test_env:<20} {cluster_type:<20} {failed_stage_str:<30} {started:<20} {duration:<12} {url}"
         else:
             line = f"{build_num:<8} {status:<12} {test_env:<20} {cluster_type:<20} {failed_stage_str:<30} {started:<20} {duration:<12} {url}"
 
@@ -382,7 +390,7 @@ def display_filtered_builds(builds, last_builds=None, watch_mode=False):
             print(line)
 
     # Summary
-    sep_len = 160 if watch_mode else 180
+    sep_len = 180
     print("\n" + "=" * sep_len)
 
     status_counts = {}
@@ -446,19 +454,22 @@ def display_filtered_builds(builds, last_builds=None, watch_mode=False):
                 print(f"  Duration: {build['duration'] / 1000:.2f}s" if build['duration'] else "  Duration: N/A")
 
 
-def save_to_json(builds, filename="jenkins_builds_install_cluster.json", quiet=False):
+def save_to_json(builds, filename="jenkins_builds_install_cluster.json", debug=False):
     """Save the filtered builds to a JSON file"""
     try:
         with open(filename, 'w') as f:
             json.dump(builds, f, indent=2)
-        if not quiet:
-            print(f"\nResults saved to: {filename}")
+        print(f"\nResults saved to: {filename}")
+        if debug:
+            print(f"  Saved {len(builds)} builds to JSON")
     except Exception as e:
-        if not quiet:
-            print(f"Error saving to JSON: {e}")
+        print(f"Error saving to JSON: {e}")
+        if debug:
+            import traceback
+            traceback.print_exc()
 
 
-def save_to_csv(builds, filename="jenkins_builds_install_cluster.csv", quiet=False):
+def save_to_csv(builds, filename="jenkins_builds_install_cluster.csv", debug=False):
     """Save the filtered builds to a CSV file"""
     try:
         with open(filename, 'w', newline='') as f:
@@ -474,6 +485,9 @@ def save_to_csv(builds, filename="jenkins_builds_install_cluster.csv", quiet=Fal
 
             other_params = sorted(param_keys - {'TEST_ENVIRONMENT', 'CLUSTER_TYPE', 'MY_JOB_PARAMETER'})
             fieldnames.extend(other_params)
+
+            if debug:
+                print(f"  CSV columns: {fieldnames}")
 
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -499,11 +513,14 @@ def save_to_csv(builds, filename="jenkins_builds_install_cluster.csv", quiet=Fal
 
                 writer.writerow(row)
 
-        if not quiet:
-            print(f"Results saved to CSV: {filename}")
+        print(f"Results saved to CSV: {filename}")
+        if debug:
+            print(f"  Saved {len(builds)} builds to CSV with {len(fieldnames)} columns")
     except Exception as e:
-        if not quiet:
-            print(f"Error saving to CSV: {e}")
+        print(f"Error saving to CSV: {e}")
+        if debug:
+            import traceback
+            traceback.print_exc()
 
 def show_intro(user_info, version, job, limit=None, filter_params=None):
     """Show the watch mode introduction header"""
@@ -558,9 +575,9 @@ def show_iteration_header(iteration, refresh_status):
               help='JSON output filename')
 @click.option('--csv-file', default='jenkins_builds_install_cluster.csv',
               help='CSV output filename')
-@click.option('--quiet', '-q', is_flag=True,
-              help='Suppress progress messages (one-time mode only)')
-def main(url, job, user, token, limit, filter_params, watch, interval, no_verify_ssl, save, json_file, csv_file, quiet):
+@click.option('--debug', '-d', is_flag=True,
+              help='Enable debug mode with verbose output (one-time mode only)')
+def main(url, job, user, token, limit, filter_params, watch, interval, no_verify_ssl, save, json_file, csv_file, debug):
     """
     Jenkins Build Monitor - Monitor job builds, optionally filtered by parameters
 
@@ -614,7 +631,7 @@ def main(url, job, user, token, limit, filter_params, watch, interval, no_verify
                     show_refresh_status(refresh_status)
                     # Get builds
                     try:
-                        builds = get_builds(server, job, limit=build_limit, filter_params=filter_params, quiet=True)
+                        builds = get_builds(server, job, limit=build_limit, filter_params=filter_params, debug=False, quiet_mode=True)
                         refresh_status.complete_success()
                     except Exception as e:
                         refresh_status.complete_error(str(e))
@@ -648,37 +665,39 @@ def main(url, job, user, token, limit, filter_params, watch, interval, no_verify
 
         else:
             # One-time mode
-            if not quiet:
-                print(f"Connected to Jenkins {version}")
-                print(f"Authenticated as: {jenkins_user['fullName']}")
+            print(f"Connected to Jenkins {version}")
+            print(f"Authenticated as: {jenkins_user['fullName']}")
 
-                if build_limit:
-                    print(f"Configuration: Checking last {build_limit} builds (use --limit=0 for all builds)")
-                else:
-                    print(f"Configuration: Checking ALL builds")
+            if build_limit:
+                print(f"Configuration: Checking last {build_limit} builds (use --limit=0 for all builds)")
+            else:
+                print(f"Configuration: Checking ALL builds")
 
-                if filter_params:
-                    filters = parse_filter_params(filter_params)
-                    filter_strs = [f"{k}={v}" for k, v in filters.items()]
-                    print(f"Filters: {', '.join(filter_strs)}")
-                else:
-                    print(f"Filters: None (showing all builds)")
+            if filter_params:
+                filters = parse_filter_params(filter_params)
+                filter_strs = [f"{k}={v}" for k, v in filters.items()]
+                print(f"Filters: {', '.join(filter_strs)}")
+            else:
+                print(f"Filters: None (showing all builds)")
 
-                if no_verify_ssl:
-                    print(f"{Colors.YELLOW}WARNING: SSL verification disabled{Colors.RESET}")
+            if no_verify_ssl:
+                print(f"{Colors.YELLOW}WARNING: SSL verification disabled{Colors.RESET}")
 
-                print("=" * 100)
+            if debug:
+                print(f"{Colors.CYAN}DEBUG MODE ENABLED{Colors.RESET}")
+
+            print("=" * 100)
 
             # Get builds
-            builds = get_builds(server, job, limit=build_limit, filter_params=filter_params, quiet=quiet)
+            builds = get_builds(server, job, limit=build_limit, filter_params=filter_params, debug=debug)
 
             # Display results
             display_filtered_builds(builds, watch_mode=False)
 
             # Save to files
             if save and builds:
-                save_to_json(builds, json_file, quiet=quiet)
-                save_to_csv(builds, csv_file, quiet=quiet)
+                save_to_json(builds, json_file, debug=debug)
+                save_to_csv(builds, csv_file, debug=debug)
 
     except jenkins.JenkinsException as e:
         click.echo(f"{Colors.RED}Failed to connect to Jenkins: {e}{Colors.RESET}", err=True)

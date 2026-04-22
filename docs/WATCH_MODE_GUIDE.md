@@ -85,19 +85,19 @@ Example error scenarios:
 
 ```
 JENKINS BUILD MONITOR - WATCH MODE
-Jenkins: 2.401
+Jenkins: 2.528.1
 User: John Smith
-Job: team/project/pipeline
+Job: team/my-test-job
 Showing: Last 10 builds
-Filters: INSTALL_CLUSTER=true
+Filters: PROVISION_INFRA=true
 Refresh interval: 30 seconds
 
 Last updated: 2026-04-22 14:30:45 | Iteration: 5 | ✓ Last refresh successful
-============================================================================================
+====================================================================================================================================================================================
 
-NEW  #        Status       Test Env             Cluster Type         Failed Stage
-     12135    RUNNING      staging              kubernetes-aws       -
-     12134    FAILURE      production           managed-k8s          Test Execution
+NEW  #        Status       Test Env             Cluster Type         Failed Stage                   Started              Duration     URL
+     12141    RUNNING      AWS                  selfmanaged          -                              2026-04-22 15:30:33  N/A          https://jenkins.example.com/job/team/job/my-test-job/12141/
+     12140    FAILURE      Cloud-A              managed              Provisioning                   2026-04-22 15:02:09  399.86s      https://jenkins.example.com/job/team/job/my-test-job/12140/
 
 ⠋ Next refresh in 25 seconds... (Press Ctrl+C to exit)
 ```
@@ -106,18 +106,18 @@ NEW  #        Status       Test Env             Cluster Type         Failed Stag
 
 ```
 Last updated: 2026-04-22 14:31:15 | Iteration: 6 | ↓ Fetching data...
-============================================================================================
+====================================================================================================================================================================================
 ```
 
 ### After Error
 
 ```
 Last updated: 2026-04-22 14:31:45 | Iteration: 7 | ✗ Refresh failed: HTTPSConnectionPool timeout
-============================================================================================
+====================================================================================================================================================================================
 
 # Previous data still displayed
-     12135    SUCCESS      staging              kubernetes-aws       -
-     12134    FAILURE      production           managed-k8s          Test Execution
+     12141    SUCCESS      AWS                  selfmanaged          -                              2026-04-22 15:30:33  2145.32s     https://jenkins.example.com/job/team/job/my-test-job/12141/
+     12140    FAILURE      Cloud-A              managed              Provisioning                   2026-04-22 15:02:09  399.86s      https://jenkins.example.com/job/team/job/my-test-job/12140/
 
 ⠋ Next refresh in 28 seconds... (Press Ctrl+C to exit)
 ```
